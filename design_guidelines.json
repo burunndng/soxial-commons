@@ -1,0 +1,91 @@
+{
+  "theme": "dark",
+  "archetype": "4 (Swiss & High-Contrast) - Old Money Tech Variant",
+  "emotional_tone": "Intellectual, objective, serious, anti-vanity, museum-like focus",
+  "colors": {
+    "background": "oklch(12% 0.01 250)",
+    "surface": "oklch(15% 0.01 250)",
+    "surface_hover": "oklch(18% 0.01 250)",
+    "border": "oklch(25% 0.01 250)",
+    "primary_text": "#F3F4F6",
+    "secondary_text": "oklch(60% 0.01 250)",
+    "accent": "oklch(76% 0.14 75)",
+    "accent_hover": "oklch(80% 0.14 75)",
+    "destructive": "#EF4444"
+  },
+  "typography": {
+    "heading": {
+      "family": "'Instrument Serif', serif",
+      "weight": "400",
+      "style": "Can mix italic and normal for editorial feel",
+      "tracking": "tracking-tight",
+      "usage": "Post titles, page headers, major section headers"
+    },
+    "body": {
+      "family": "'DM Sans', sans-serif",
+      "weight": "400, 500",
+      "line_height": "leading-relaxed",
+      "usage": "Post bodies, comments, standard text"
+    },
+    "monospace": {
+      "family": "'DM Mono', monospace",
+      "weight": "400",
+      "tracking": "tracking-widest",
+      "usage": "Metadata, pseudonyms, timestamps, tags, small UI labels, consensus indicators"
+    }
+  },
+  "layout_and_spacing": {
+    "grid_system": "The Control Room Grid (dense vertical rhythm for feed)",
+    "container_width": "max-w-3xl mx-auto (prioritize reading legibility)",
+    "spacing_scale": "p-4, p-6, p-8, p-12",
+    "borders": "Flat 1px borders (border-white/10), no bounding boxes/cards for posts, use border-b for separation",
+    "alignment": "Strict left alignment for content to mimic editorial articles"
+  },
+  "components": {
+    "navigation": {
+      "style": "Glassmorphism, border-b border-white/10, backdrop-blur-xl bg-background/60",
+      "links": "DM Mono text-sm, tracking-widest, uppercase"
+    },
+    "post_feed": {
+      "style": "List format, border-b border-white/10, no elevated cards",
+      "title": "Instrument Serif text-2xl to text-4xl",
+      "metadata": "DM Mono text-xs text-secondary-text uppercase",
+      "vote_buttons": "Minimalist chevrons (lucide-react), NO vote counts visible. On voted: color turns accent (Amber)"
+    },
+    "tags": {
+      "style": "border border-accent/30 text-accent px-2 py-0.5 text-xs font-mono uppercase rounded-none"
+    },
+    "buttons": {
+      "primary": "bg-accent text-black hover:bg-accent-hover font-mono uppercase tracking-widest text-sm py-3 px-6 rounded-none",
+      "secondary": "border border-white/20 text-white hover:bg-white/5 font-mono uppercase tracking-widest text-sm py-3 px-6 rounded-none",
+      "ghost": "text-secondary-text hover:text-white font-mono uppercase text-xs tracking-widest"
+    },
+    "modals": {
+      "style": "Solid background (oklch(15% 0.01 250)), hard borders (border-white/10), no soft shadows, backdrop-blur-sm on overlay. Used for Steelman modal."
+    }
+  },
+  "motion_and_interaction": {
+    "hover": "Text color shifts, border opacities increase. Avoid heavy background color shifts.",
+    "transitions": "transition-colors duration-200 ease-in-out",
+    "focus": "focus-visible:ring-1 focus-visible:ring-accent focus-visible:outline-none"
+  },
+  "media_urls": {
+    "hero_background": {
+      "url": "https://images.unsplash.com/photo-1485025798926-cde0f0d24cca?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODF8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMGRhcmslMjBhcmNoaXRlY3R1cmUlMjBtaW5pbWFsfGVufDB8fHx8MTc3NjE3MzE3NHww&ixlib=rb-4.1.0&q=85",
+      "description": "Minimalist dark abstract background for landing or auth page",
+      "usage": "Use with heavy opacity overlay (bg-background/90) to ensure text legibility. Place at the top of the home feed as a subtle hero."
+    }
+  },
+  "instructions_to_main_agent": [
+    "The user explicitly wants to 'Turn this into Next.js 15 App Router' but the current workspace uses Vite. You MUST perform the Next.js migration as requested, or integrate these Next.js/React patterns seamlessly.",
+    "Import fonts: 'Instrument Serif', 'DM Sans', 'DM Mono' from Google Fonts into the main layout.",
+    "Install 'lucide-react' for all icons. Do not use emojis.",
+    "Apply 'dark' theme globally. The background must be the dark cool-neutral oklch value.",
+    "All interactive elements MUST have 'data-testid' attributes (e.g., data-testid='upvote-button').",
+    "NEVER display vote counts. The UI should only show up/down arrows (or whatever mechanism) that light up amber when activated.",
+    "Use Shadcn UI primitives but heavily customize them. Strip out rounded corners (rounded-none or max rounded-sm) and soft shadows.",
+    "Steelman modal: Dialog should appear before submitting a negative reply, prompting the user to restate the opposing argument.",
+    "Do not build 'Cards' for posts. Use a continuous list with horizontal 1px separator lines.",
+    "Ensure the Amber accent is used sparingly to draw focus to consensus gates, stub badges, and active actions."
+  ]
+}
