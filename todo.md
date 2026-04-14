@@ -26,9 +26,7 @@
 - [x] Build Community pages with real data
 - [x] Build Post detail page with real data
 - [x] Create post composer with collaboration/stub options
-- [ ] Implement steelmanning prompt modal — Deferred for Phase 2
-- [ ] Build comment thread with nested replies — Deferred for Phase 2
-- [x] Add responsive layout and mobile support
+- [x] Add responsive layout and mobile support (basic flex/grid, mobile-first design)
 
 ## Phase 4: Collaboration & Mechanics
 - [x] Implement incomplete post (stub) creation
@@ -45,8 +43,7 @@
 - [x] Implement sophisticated color palette
 - [x] Add loading states and error handling
 - [x] Optimize performance for randomized feeds
-- [x] Add comprehensive test coverage (28 tests, all passing)
-- [ ] Implement local-first draft storage (IndexedDB) — Deferred for Phase 2
+- [x] Add backend anti-vanity mechanics tests (32 tests, all passing)
 
 ## Phase 6: Final Delivery
 - [x] Verify all features work end-to-end
@@ -57,3 +54,12 @@
 - [x] Validate consensus gates
 - [x] Check responsive design on mobile
 - [x] Create checkpoint and prepare for deployment
+
+## Phase 2 (Future) — Advanced Features
+- [ ] Implement steelmanning prompt modal
+- [ ] Build nested/threaded comments
+- [ ] Implement local-first draft storage (IndexedDB)
+- [ ] Wire voting mutations to frontend
+- [ ] Implement handoff thread mechanics
+- [ ] Add Supabase database integration
+- [ ] Deploy to production
