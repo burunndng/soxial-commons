@@ -2,15 +2,14 @@ import { useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
 import { useState } from "react";
-import { trpc } from "@/lib/trpc";
-import { ChevronLeft, Lightbulb, Lock } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 
 const COMMUNITIES = [
   { id: 1, name: "technology", label: "Technology", icon: "⚡" },
-  { id: 2, name: "design", label: "Design", icon: "✨" },
-  { id: 3, name: "science", label: "Science", icon: "🔬" },
-  { id: 4, name: "books", label: "Books", icon: "📚" },
-  { id: 5, name: "general", label: "General", icon: "💬" },
+  { id: 2, name: "design", label: "Design", icon: "✦" },
+  { id: 3, name: "science", label: "Science", icon: "◎" },
+  { id: 4, name: "books", label: "Books", icon: "◈" },
+  { id: 5, name: "general", label: "General", icon: "◇" },
 ];
 
 export default function Compose() {
@@ -24,22 +23,19 @@ export default function Compose() {
   const [requiresConsensus, setRequiresConsensus] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Redirect if not authenticated
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-neutral-50 to-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="bg-white border border-neutral-200 rounded-xl p-8 text-center">
-            <p className="text-neutral-600 mb-6 text-lg">
-              You must be logged in to create a post.
-            </p>
-            <button
-              onClick={() => (window.location.href = getLoginUrl())}
-              className="inline-block px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-lg hover:shadow-lg transition-all"
-            >
-              Login to Create Post
-            </button>
-          </div>
+      <div style={{ minHeight: "100vh", backgroundColor: "var(--surface-base)" }}>
+        <div className="container" style={{ paddingTop: "64px", textAlign: "center" }}>
+          <p style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: "12px", marginBottom: "16px" }}>
+            You must be logged in to create a post.
+          </p>
+          <button
+            onClick={() => (window.location.href = getLoginUrl())}
+            style={{ padding: "8px 16px", border: "1px solid var(--accent)", color: "var(--accent)", borderRadius: "3px", fontSize: "13px", fontFamily: "var(--font-ui)", cursor: "pointer", background: "none" }}
+          >
+            Login
+          </button>
         </div>
       </div>
     );
@@ -48,14 +44,11 @@ export default function Compose() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
-
     setIsSubmitting(true);
     try {
-      // Call tRPC mutation to create post
-      // For now, just redirect to home
       setLocation("/");
-    } catch (error) {
-      console.error("Failed to create post:", error);
+    } catch {
+      // handle error
     } finally {
       setIsSubmitting(false);
     }
@@ -64,160 +57,211 @@ export default function Compose() {
   const selectedCommunity = COMMUNITIES.find((c) => c.id === communityId);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-neutral-50 to-white">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Back Button */}
+    <div style={{ minHeight: "100vh", backgroundColor: "var(--surface-base)" }}>
+      <div className="container" style={{ maxWidth: "720px", paddingTop: "32px", paddingBottom: "64px" }}>
+        {/* Back */}
         <button
           onClick={() => setLocation("/")}
-          className="flex items-center gap-2 text-neutral-600 hover:text-dark mb-8 transition-colors"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "4px",
+            color: "var(--text-muted)",
+            fontFamily: "var(--font-mono)",
+            fontSize: "11px",
+            letterSpacing: "0.04em",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            padding: 0,
+            marginBottom: "32px",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
         >
-          <ChevronLeft className="w-5 h-5" />
-          Back to Discussions
+          <ChevronLeft style={{ width: "12px", height: "12px" }} />
+          Back
         </button>
 
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-dark mb-2 flex items-center gap-3">
-            <Lightbulb className="w-8 h-8 text-blue-600" />
-            Share Your Idea
-          </h1>
-          <p className="text-lg text-neutral-600">
-            Start a thoughtful discussion with the community.
+        <div style={{ borderBottom: "1px solid var(--border-subtle)", paddingBottom: "24px", marginBottom: "32px" }}>
+          <h1>New post</h1>
+          <p style={{ marginTop: "8px", color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: "11px", letterSpacing: "0.04em" }}>
+            Your name will not be attached. A per-thread pseudonym is assigned automatically.
           </p>
         </div>
 
-        {/* Form */}
-        <div className="bg-white border border-neutral-200 rounded-xl p-8">
-          <form onSubmit={handleSubmit} className="space-y-8">
-            {/* Community Selector */}
-            <div>
-              <label className="block text-sm font-semibold text-dark mb-3">
-                Choose Community
-              </label>
-              <select
-                value={communityId}
-                onChange={(e) => setCommunityId(parseInt(e.target.value))}
-                className="w-full px-4 py-3 border border-neutral-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
-              >
-                {COMMUNITIES.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.icon} {c.label}
-                  </option>
-                ))}
-              </select>
-              <p className="text-sm text-neutral-500 mt-2">
-                Your post will appear in {selectedCommunity?.label}
-              </p>
+        <form onSubmit={handleSubmit}>
+          {/* Community selector */}
+          <div style={{ marginBottom: "28px" }}>
+            <label
+              style={{ display: "block", fontFamily: "var(--font-mono)", fontSize: "10px", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: "8px" }}
+            >
+              Space
+            </label>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+              {COMMUNITIES.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setCommunityId(c.id)}
+                  style={{
+                    padding: "6px 12px",
+                    border: communityId === c.id ? "1px solid var(--accent)" : "1px solid var(--border)",
+                    color: communityId === c.id ? "var(--accent)" : "var(--text-secondary)",
+                    backgroundColor: communityId === c.id ? "var(--accent-subtle)" : "transparent",
+                    borderRadius: "3px",
+                    fontSize: "12px",
+                    fontFamily: "var(--font-ui)",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                >
+                  <span>{c.icon}</span>
+                  <span>{c.label}</span>
+                </button>
+              ))}
             </div>
+          </div>
 
-            {/* Title */}
-            <div>
-              <label className="block text-sm font-semibold text-dark mb-3">
-                Title
-              </label>
+          {/* Title */}
+          <div style={{ marginBottom: "20px" }}>
+            <label
+              style={{ display: "block", fontFamily: "var(--font-mono)", fontSize: "10px", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: "8px" }}
+            >
+              Title
+            </label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="State your idea or question clearly"
+              maxLength={300}
+              style={{ width: "100%", fontSize: "16px", fontFamily: "var(--font-editorial)" }}
+              autoFocus
+            />
+            <p style={{ marginTop: "4px", fontFamily: "var(--font-mono)", fontSize: "10px", color: "var(--text-faint)" }}>
+              {title.length}/300
+            </p>
+          </div>
+
+          {/* Body */}
+          <div style={{ marginBottom: "20px" }}>
+            <label
+              style={{ display: "block", fontFamily: "var(--font-mono)", fontSize: "10px", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: "8px" }}
+            >
+              Body <span style={{ color: "var(--text-faint)" }}>(optional)</span>
+            </label>
+            <textarea
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              placeholder="Add context, evidence, or nuance…"
+              rows={6}
+              style={{ width: "100%", resize: "vertical" }}
+            />
+          </div>
+
+          {/* URL */}
+          <div style={{ marginBottom: "32px" }}>
+            <label
+              style={{ display: "block", fontFamily: "var(--font-mono)", fontSize: "10px", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: "8px" }}
+            >
+              Link <span style={{ color: "var(--text-faint)" }}>(optional)</span>
+            </label>
+            <input
+              type="url"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://…"
+              style={{ width: "100%" }}
+            />
+          </div>
+
+          {/* Options */}
+          <div
+            style={{
+              padding: "20px",
+              backgroundColor: "var(--surface-raised)",
+              border: "1px solid var(--border-subtle)",
+              marginBottom: "32px",
+            }}
+          >
+            <p style={{ fontFamily: "var(--font-mono)", fontSize: "10px", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: "16px" }}>
+              Post mechanics
+            </p>
+
+            <label
+              style={{ display: "flex", alignItems: "flex-start", gap: "12px", cursor: "pointer", marginBottom: "16px" }}
+            >
               <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="What's your idea?"
-                maxLength={300}
-                className="w-full px-4 py-3 border border-neutral-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
+                type="checkbox"
+                checked={isStub}
+                onChange={(e) => setIsStub(e.target.checked)}
+                style={{ marginTop: "2px", accentColor: "var(--accent)" }}
               />
-              <p className="text-xs text-neutral-500 mt-2">
-                {title.length}/300 characters
-              </p>
-            </div>
+              <div>
+                <p style={{ fontSize: "13px", color: "var(--text-primary)", marginBottom: "2px" }}>
+                  Incomplete post <span className="stub-badge" style={{ marginLeft: "6px" }}>stub</span>
+                </p>
+                <p style={{ fontSize: "12px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
+                  Open for co-authoring. Others can contribute and refine the idea.
+                </p>
+              </div>
+            </label>
 
-            {/* Body */}
-            <div>
-              <label className="block text-sm font-semibold text-dark mb-3">
-                Description
-              </label>
-              <textarea
-                value={body}
-                onChange={(e) => setBody(e.target.value)}
-                placeholder="Provide more context or details about your idea..."
-                rows={6}
-                className="w-full px-4 py-3 border border-neutral-200 rounded-lg bg-white resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
-              />
-              <p className="text-xs text-neutral-500 mt-2">
-                Be clear and thoughtful. This helps others engage meaningfully.
-              </p>
-            </div>
-
-            {/* URL (optional) */}
-            <div>
-              <label className="block text-sm font-semibold text-dark mb-3">
-                Link (optional)
-              </label>
+            <label style={{ display: "flex", alignItems: "flex-start", gap: "12px", cursor: "pointer" }}>
               <input
-                type="url"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://example.com"
-                className="w-full px-4 py-3 border border-neutral-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
+                type="checkbox"
+                checked={requiresConsensus}
+                onChange={(e) => setRequiresConsensus(e.target.checked)}
+                style={{ marginTop: "2px", accentColor: "var(--accent)" }}
               />
-            </div>
+              <div>
+                <p style={{ fontSize: "13px", color: "var(--text-primary)", marginBottom: "2px" }}>
+                  Require consensus <span className="consensus-gate" style={{ marginLeft: "6px" }}>⊙ gate</span>
+                </p>
+                <p style={{ fontSize: "12px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
+                  Needs endorsements from opposing viewpoints before full visibility.
+                </p>
+              </div>
+            </label>
+          </div>
 
-            {/* Options */}
-            <div className="space-y-4 p-6 bg-neutral-50 rounded-lg border border-neutral-200">
-              <h3 className="font-semibold text-dark">Advanced Options</h3>
-
-              <label className="flex items-start gap-3 cursor-pointer group">
-                <input
-                  type="checkbox"
-                  checked={isStub}
-                  onChange={(e) => setIsStub(e.target.checked)}
-                  className="w-5 h-5 mt-1 rounded border-neutral-300 text-blue-600 focus:ring-blue-500"
-                />
-                <div>
-                  <p className="font-medium text-dark group-hover:text-blue-600 transition-colors">
-                    Incomplete Post
-                  </p>
-                  <p className="text-sm text-neutral-600">
-                    Open this post for co-authoring. Others can contribute and refine your idea.
-                  </p>
-                </div>
-              </label>
-
-              <label className="flex items-start gap-3 cursor-pointer group">
-                <input
-                  type="checkbox"
-                  checked={requiresConsensus}
-                  onChange={(e) => setRequiresConsensus(e.target.checked)}
-                  className="w-5 h-5 mt-1 rounded border-neutral-300 text-blue-600 focus:ring-blue-500"
-                />
-                <div>
-                  <p className="font-medium text-dark group-hover:text-blue-600 transition-colors flex items-center gap-2">
-                    <Lock className="w-4 h-4" />
-                    Require Consensus
-                  </p>
-                  <p className="text-sm text-neutral-600">
-                    This post needs endorsements from opposing viewpoints before becoming visible to the wider community.
-                  </p>
-                </div>
-              </label>
-            </div>
-
-            {/* Actions */}
-            <div className="flex gap-3 justify-end pt-4 border-t border-neutral-200">
-              <button
-                type="button"
-                onClick={() => setLocation("/")}
-                className="px-6 py-3 text-neutral-600 hover:bg-neutral-100 rounded-lg transition-colors font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={!title.trim() || isSubmitting}
-                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all font-semibold"
-              >
-                {isSubmitting ? "Publishing..." : "Publish Post"}
-              </button>
-            </div>
-          </form>
-        </div>
+          {/* Actions */}
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", paddingTop: "20px", borderTop: "1px solid var(--border-subtle)" }}>
+            <button
+              type="button"
+              onClick={() => setLocation("/")}
+              style={{ padding: "8px 16px", fontSize: "13px", color: "var(--text-secondary)", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font-ui)" }}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={!title.trim() || isSubmitting}
+              style={{
+                padding: "8px 20px",
+                fontSize: "13px",
+                border: "1px solid var(--accent)",
+                color: title.trim() && !isSubmitting ? "var(--accent)" : "var(--text-faint)",
+                borderColor: title.trim() && !isSubmitting ? "var(--accent)" : "var(--border)",
+                borderRadius: "3px",
+                cursor: title.trim() && !isSubmitting ? "pointer" : "not-allowed",
+                background: "none",
+                fontFamily: "var(--font-ui)",
+                opacity: title.trim() && !isSubmitting ? 1 : 0.5,
+              }}
+              onMouseEnter={(e) => {
+                if (title.trim() && !isSubmitting) e.currentTarget.style.backgroundColor = "var(--accent-subtle)";
+              }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+            >
+              {isSubmitting ? "Publishing…" : "Publish"}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
