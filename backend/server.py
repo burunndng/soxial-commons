@@ -10,7 +10,16 @@ from datetime import datetime, timezone, timedelta
 from bson import ObjectId
 import os, jwt, random, bcrypt
 
-app = FastAPI(title="Soxial Commons API")
+from contextlib import asynccontextmanager
+
+
+@asynccontextmanager
+async def lifespan(app_instance):
+    await startup()
+    yield
+
+
+app = FastAPI(title="Soxial Commons API", lifespan=lifespan)
 
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
 app.add_middleware(
@@ -87,7 +96,6 @@ async def get_current_session(request: Request) -> Optional[dict]:
         return None
 
 
-@app.on_event("startup")
 async def startup():
     await db.posts.create_index("communitySlug")
     await db.posts.create_index("createdAt")
