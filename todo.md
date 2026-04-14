@@ -63,3 +63,49 @@
 - [ ] Implement handoff thread mechanics
 - [ ] Add Supabase database integration
 - [ ] Deploy to production
+
+
+## Anti-Vanity UX Skill Alignment (Phase 2+)
+
+### Priority 1: Topic Spaces (Remove Profiles) — IN PROGRESS
+- [x] Remove user profile pages entirely (no profile routes in current design)
+- [ ] Keep thread-scoped contribution history (for accountability only)
+- [x] Ensure all navigation is through topic spaces, not people (community-first navigation)
+- [x] Hide user contribution counts from public view (no karma/follower counts exposed)
+
+### Priority 2: Serendipity Feed Enhancement — UTILITIES CREATED
+- [x] Implement topic cluster detection utility (detectUserClusters)
+- [x] Add serendipity injection utility (assembleSerendipityFeed with 30% ratio)
+- [x] Shuffle feed results utility (integrated into serendipity engine)
+- [x] Add "show me things I wouldn't find" discovery logic (13 tests, all passing)
+- [ ] Integrate serendipity into tRPC feed procedures (Phase 2+)
+
+### Priority 3: Steelmanning UX Flow — MODAL CREATED
+- [x] Build steelmanning modal component with restatement prompt
+- [x] Implement modal verdict UI states (approved/rejected/waiting)
+- [ ] Add jury fallback workflow after 2 rejections (Phase 2+)
+- [ ] Wire steelmanning enforcement into reply flows (Phase 2+)
+
+### Vote Hiding Refinement
+- [ ] Ensure vote counts never leak in API responses
+- [ ] De-emphasize author names (smaller, greyed, below content)
+- [ ] Highlight content over author attribution
+- [ ] Test vote hiding across all vote types (posts, comments)
+
+### Temporal Decay Refinement
+- [ ] Implement soft decay (posts remain accessible via link, hidden from feeds)
+- [ ] Add decay-with-handoff (ownership passes to last commenter)
+- [ ] Build background job for expiry handling
+- [ ] Add visual decay indicators (age badges)
+
+### Consensus Gate Refinement
+- [ ] Implement implicit clustering from voting history
+- [ ] Require endorsements from multiple viewpoint clusters
+- [ ] Build consensus gate UI showing endorsements needed
+- [ ] Add cross-cluster validation before visibility
+
+### Incomplete Posts / Co-authorship
+- [ ] Refine stub post creation UI
+- [ ] Implement joint attribution for co-authored posts
+- [ ] Add anonymous completion option (no names, just idea)
+- [ ] Build co-author invitation and acceptance flow
