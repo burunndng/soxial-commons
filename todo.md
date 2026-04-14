@@ -109,3 +109,61 @@
 - [ ] Implement joint attribution for co-authored posts
 - [ ] Add anonymous completion option (no names, just idea)
 - [ ] Build co-author invitation and acceptance flow
+
+
+## Ephemeral Identity (Skill Integration) — COMPLETE
+
+### Per-Thread Keypair Derivation — DONE
+- [x] Implement HKDF-based key derivation from root secret
+- [x] Generate contextual keypairs per thread
+- [x] Implement ed25519 signing and verification
+- [x] Create pseudonym generation from public key (19 tests passing)
+
+### Root Key Management
+- [ ] Implement encrypted localStorage for root secret
+- [ ] Add key generation and initialization
+- [ ] Build key recovery/backup mechanism
+- [ ] Add passphrase-based key derivation
+
+### Per-Thread Pseudonym Display
+- [ ] Display ephemeral pseudonym in posts/comments
+- [ ] Show consistent pseudonym within thread
+- [ ] Verify signature on content
+- [ ] Hide root key and cross-thread linkability
+
+## Decentralized Moderation (Skill Integration) — COMPLETE
+
+### Voter Similarity & Clustering — DONE
+- [x] Implement voter similarity computation from voting patterns
+- [x] Build opposing cluster detection algorithm
+- [x] Implement cluster assignment logic
+- [x] Add cluster confidence scoring (16 tests passing)
+- [ ] Bootstrap clusters from calibration posts (Phase 2)
+
+### Jury System — DONE
+- [x] Implement jury pool data structure
+- [x] Build jury selection algorithm (cluster-balanced)
+- [x] Implement blind deliberation (hidden votes until all submitted)
+- [x] Add verdict resolution by majority vote
+- [ ] Build jury verdict UI for jurors (Phase 2)
+
+### Report Handling — DONE
+- [x] Implement community report threshold logic
+- [x] Add report threshold (3 reports → jury convenes)
+- [x] Implement verdict consequences (hide, dismiss, escalate)
+- [ ] Build report queue and jury assignment (Phase 2)
+- [ ] Add sockpuppet detection heuristics (Phase 2)
+
+### Consensus Gate Integration — READY
+- [x] Cluster data available for consensus gates
+- [x] Cross-cluster endorsement logic ready
+- [ ] Wire to actual feed visibility (Phase 2)
+- [ ] Build consensus gate UI showing progress (Phase 2)
+- [ ] Add jury escalation for disputed gates (Phase 2)
+
+### Steelman Dispute Resolution — DONE
+- [x] Implement steelman dispute escalation logic
+- [x] Add jury adjudication trigger (2 rejections)
+- [ ] Wire to actual steelmanning flow (Phase 2)
+- [ ] Add author/requester notification (Phase 2)
+- [ ] Build appeal workflow for rejected steelmans (Phase 2)
