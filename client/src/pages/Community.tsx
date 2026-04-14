@@ -1,18 +1,29 @@
-import { useAuth } from "@/_core/hooks/useAuth";
+import { useRoute } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
 import { ArrowUp, ArrowDown, MessageCircle, Bookmark } from "lucide-react";
 import { useState } from "react";
-import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
+import { useLocation } from "wouter";
 
-export default function Home() {
-  const { isAuthenticated } = useAuth();
+export default function Community() {
+  const [match, params] = useRoute("/c/:community");
   const [, setLocation] = useLocation();
+  const { isAuthenticated } = useAuth();
   const [sortBy, setSortBy] = useState<"score" | "recent">("score");
 
-  // Fetch randomized feed from tRPC
+  if (!match) return null;
+
+  const communityName = params?.community as string;
+
+  // Fetch community info
+  const { data: community } = trpc.communities.getByName.useQuery({
+    name: communityName,
+  });
+
+  // Fetch community feed
   const { data: posts = [], isLoading } = trpc.posts.getFeed.useQuery({
     limit: 25,
   });
@@ -26,19 +37,16 @@ export default function Home() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
-      {/* Header */}
+      {/* Community Header */}
       <div className="mb-8">
-        <h1 className="font-serif text-4xl font-bold mb-2">
-          Discover Ideas
+        <h1 className="font-serif text-4xl font-bold mb-2 capitalize">
+          {community?.displayName || communityName}
         </h1>
-        <p className="text-muted-foreground mb-6">
-          Explore thoughtful discussions across communities. Every voice matters equally.
+        <p className="text-muted-foreground mb-4">
+          {community?.description || `A space for thoughtful discussion about ${communityName}.`}
         </p>
-
         {isAuthenticated && (
-          <Button onClick={() => setLocation("/compose")}>
-            Create Post
-          </Button>
+          <Button>Create Post</Button>
         )}
       </div>
 
@@ -67,12 +75,12 @@ export default function Home() {
         </div>
       )}
 
-      {/* Posts Feed */}
+      {/* Posts List */}
       {!isLoading && (
         <div className="space-y-4">
           {posts.length === 0 ? (
             <Card className="p-6 text-center">
-              <p className="text-muted-foreground">No posts yet. Be the first to share!</p>
+              <p className="text-muted-foreground">No posts yet in this community.</p>
             </Card>
           ) : (
             posts.map((post: any) => (
@@ -108,7 +116,7 @@ export default function Home() {
                   {/* Post Content */}
                   <div className="flex-1 min-w-0">
                     <div className="mb-1 text-xs text-muted-foreground">
-                      {post.communityId} • {formatTime(post.createdAt)}
+                      {formatTime(post.createdAt)}
                     </div>
                     <h2 className="font-serif text-lg font-semibold mb-1 hover:underline">
                       {post.title}
@@ -151,7 +159,7 @@ export default function Home() {
       {!isAuthenticated && (
         <div className="mt-12 p-6 bg-muted rounded-lg text-center">
           <p className="text-muted-foreground mb-4">
-            Join the conversation to share your ideas
+            Join the conversation
           </p>
           <Button onClick={() => window.location.href = getLoginUrl()}>
             Login to Participate
