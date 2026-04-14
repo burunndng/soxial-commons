@@ -1,9 +1,10 @@
 import { useRoute, useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
-import { ArrowUp, ArrowDown, MessageCircle, Bookmark, Share2, ChevronLeft } from "lucide-react";
+import { MessageCircle, ChevronLeft } from "lucide-react";
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
+import SteelmanModal from "@/components/SteelmanModal";
 
 export default function PostDetail() {
   const [match, params] = useRoute("/post/:id");
@@ -11,46 +12,41 @@ export default function PostDetail() {
   const { isAuthenticated } = useAuth();
   const [newComment, setNewComment] = useState("");
   const [userVotes, setUserVotes] = useState<Record<number, number>>({});
+  const [replyingTo, setReplyingTo] = useState<number | null>(null);
+  const [steelmanTarget, setSteelmanTarget] = useState<number | null>(null);
 
   if (!match) return null;
 
   const postId = parseInt(params?.id as string);
 
-  // Fetch post details
-  const { data: post, isLoading: postLoading } = trpc.posts.getById.useQuery({
-    id: postId,
-  });
-
-  // Fetch comments
-  const { data: comments = [], isLoading: commentsLoading } = trpc.comments.getByPost.useQuery({
-    postId,
-  });
+  const { data: post, isLoading: postLoading } = trpc.posts.getById.useQuery({ id: postId });
+  const { data: comments = [], isLoading: commentsLoading } = trpc.comments.getByPost.useQuery({ postId });
 
   const formatTime = (date: Date | string) => {
-    const dateObj = typeof date === "string" ? new Date(date) : date;
-    const hours = Math.floor((Date.now() - dateObj.getTime()) / (1000 * 60 * 60));
+    const d = typeof date === "string" ? new Date(date) : date;
+    const hours = Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60));
     if (hours < 1) return "just now";
-    if (hours < 24) return `${hours}h ago`;
-    return `${Math.floor(hours / 24)}d ago`;
+    if (hours < 24) return `${hours}h`;
+    return `${Math.floor(hours / 24)}d`;
   };
 
-  const handleVote = (itemId: number, value: number) => {
+  const handleVote = (itemId: number, value: number, e?: React.MouseEvent) => {
+    e?.stopPropagation();
     if (!isAuthenticated) {
       window.location.href = getLoginUrl();
       return;
     }
-    setUserVotes((prev) => ({
-      ...prev,
-      [itemId]: prev[itemId] === value ? 0 : value,
-    }));
+    setUserVotes((prev) => ({ ...prev, [itemId]: prev[itemId] === value ? 0 : value }));
   };
+
+  const hasVoted = (id: number) => id in userVotes && userVotes[id] !== 0;
 
   if (postLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-neutral-50 to-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="text-center py-12">
-            <p className="text-neutral-600">Loading post...</p>
+      <div style={{ minHeight: "100vh", backgroundColor: "var(--surface-base)" }}>
+        <div className="container" style={{ paddingTop: "40px" }}>
+          <div style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: "12px" }}>
+            Loading…
           </div>
         </div>
       </div>
@@ -59,208 +55,328 @@ export default function PostDetail() {
 
   if (!post) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-neutral-50 to-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="bg-white border border-neutral-200 rounded-xl p-8 text-center">
-            <p className="text-neutral-600 mb-4">Post not found.</p>
-            <button
-              onClick={() => setLocation("/")}
-              className="text-blue-600 hover:text-blue-700 font-medium"
-            >
-              Back to Home
-            </button>
-          </div>
+      <div style={{ minHeight: "100vh", backgroundColor: "var(--surface-base)" }}>
+        <div className="container" style={{ paddingTop: "40px" }}>
+          <p style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: "12px", marginBottom: "12px" }}>
+            Post not found.
+          </p>
+          <button
+            onClick={() => setLocation("/")}
+            style={{ color: "var(--accent)", fontSize: "13px", fontFamily: "var(--font-ui)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+          >
+            ← Back
+          </button>
         </div>
       </div>
     );
   }
 
+  const postVoted = hasVoted(post.id);
+  const postUpvoted = userVotes[post.id] === 1;
+  const postDownvoted = userVotes[post.id] === -1;
+
+  // Build comment tree (flat list → nested max 2 levels)
+  const topLevel = (comments as any[]).filter((c) => !c.parentId);
+  const getReplies = (parentId: number) => (comments as any[]).filter((c) => c.parentId === parentId);
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-neutral-50 to-white">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Back Button */}
+    <div style={{ minHeight: "100vh", backgroundColor: "var(--surface-base)" }}>
+      <div className="container" style={{ paddingTop: "32px", paddingBottom: "64px" }}>
+        {/* Back */}
         <button
           onClick={() => setLocation("/")}
-          className="flex items-center gap-2 text-neutral-600 hover:text-dark mb-8 transition-colors"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "4px",
+            color: "var(--text-muted)",
+            fontFamily: "var(--font-mono)",
+            fontSize: "11px",
+            letterSpacing: "0.04em",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            padding: 0,
+            marginBottom: "32px",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
         >
-          <ChevronLeft className="w-5 h-5" />
-          Back to Discussions
+          <ChevronLeft style={{ width: "12px", height: "12px" }} />
+          Back
         </button>
 
         {/* Post */}
-        <div className="bg-white border border-neutral-200 rounded-xl p-8 mb-8">
-          <div className="flex gap-6">
-            {/* Vote Section */}
-            <div className="flex flex-col items-center gap-3">
+        <div style={{ borderBottom: "1px solid var(--border-subtle)", paddingBottom: "32px", marginBottom: "32px" }}>
+          {/* Meta */}
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
+            <span style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: "10px",
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              color: "var(--accent-dim)",
+            }}>
+              {post.communityId || "general"}
+            </span>
+            {post.isStub && <span className="stub-badge">stub</span>}
+            {post.requiresConsensus && <span className="consensus-gate">⊙ gate</span>}
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-faint)", marginLeft: "auto" }}>
+              {formatTime(post.createdAt)}
+            </span>
+          </div>
+
+          {/* Title */}
+          <h1 style={{ marginBottom: "20px" }}>{post.title}</h1>
+
+          {/* Body */}
+          {post.body && (
+            <p style={{ color: "var(--text-secondary)", fontSize: "15px", lineHeight: 1.75, marginBottom: "24px", maxWidth: "68ch" }}>
+              {post.body}
+            </p>
+          )}
+
+          {/* Post actions row */}
+          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+            {/* Vote */}
+            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
               <button
-                onClick={() => handleVote(post.id, 1)}
-                className={`p-3 rounded-lg transition-all duration-200 ${
-                  userVotes[post.id] === 1
-                    ? "bg-blue-100 text-blue-600"
-                    : "text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600"
-                }`}
+                className={`vote-btn${postUpvoted ? " vote-btn--voted" : ""}`}
+                onClick={(e) => handleVote(post.id, 1, e)}
               >
-                <ArrowUp className="w-6 h-6" strokeWidth={2.5} />
+                <span className="vote-btn__arrow" style={{ color: postUpvoted ? "var(--accent)" : undefined }}>↑</span>
               </button>
-              <span className={`text-sm font-bold transition-colors ${userVotes[post.id] ? "text-dark" : "text-neutral-500"}`}>
-                {post.score || 0}
+              <span style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: "12px",
+                color: postVoted ? "var(--text-secondary)" : "var(--text-faint)",
+              }}>
+                {postVoted ? (post.score ?? 0) : "·"}
               </span>
               <button
-                onClick={() => handleVote(post.id, -1)}
-                className={`p-3 rounded-lg transition-all duration-200 ${
-                  userVotes[post.id] === -1
-                    ? "bg-red-100 text-red-600"
-                    : "text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600"
-                }`}
+                className={`vote-btn${postDownvoted ? " vote-btn--voted" : ""}`}
+                onClick={(e) => handleVote(post.id, -1, e)}
               >
-                <ArrowDown className="w-6 h-6" strokeWidth={2.5} />
+                <span className="vote-btn__arrow" style={{ color: postDownvoted ? "var(--negative)" : undefined }}>↓</span>
               </button>
             </div>
 
-            {/* Post Content */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-3 mb-4">
-                <span className="text-sm font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
-                  {post.communityId}
-                </span>
-                <span className="text-sm text-neutral-500">{formatTime(post.createdAt)}</span>
-              </div>
+            <span style={{ color: "var(--text-faint)", fontFamily: "var(--font-mono)", fontSize: "11px" }}>
+              <MessageCircle style={{ width: "11px", height: "11px", display: "inline", marginRight: "4px", verticalAlign: "middle" }} />
+              {comments.length}
+            </span>
 
-              <h1 className="text-4xl font-bold text-dark mb-6 leading-tight">
-                {post.title}
-              </h1>
-
-              <p className="text-lg text-neutral-700 leading-relaxed mb-8">
-                {post.body}
-              </p>
-
-              {/* Actions */}
-              <div className="flex items-center gap-6 text-neutral-500">
-                <button className="flex items-center gap-2 hover:text-blue-600 transition-colors">
-                  <MessageCircle className="w-5 h-5" />
-                  <span className="text-sm font-medium">{comments.length}</span>
-                </button>
-                {isAuthenticated && (
-                  <button className="flex items-center gap-2 hover:text-blue-600 transition-colors">
-                    <Bookmark className="w-5 h-5" />
-                    <span className="text-sm font-medium">Save</span>
-                  </button>
-                )}
-                <button className="flex items-center gap-2 hover:text-blue-600 transition-colors ml-auto">
-                  <Share2 className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
+            <span style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: "11px",
+              color: "var(--text-faint)",
+              marginLeft: "auto",
+            }}>
+              {(post as any).pseudonym ?? "anon"}
+            </span>
           </div>
         </div>
 
-        {/* Comments Section */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-dark mb-6">Discussion</h2>
+        {/* Comment composer */}
+        <div style={{ marginBottom: "40px" }}>
+          <p style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: "11px",
+            letterSpacing: "0.06em",
+            textTransform: "uppercase",
+            color: "var(--text-muted)",
+            marginBottom: "16px",
+          }}>
+            Discussion · {comments.length}
+          </p>
 
-          {/* Comment Composer */}
           {isAuthenticated ? (
-            <div className="bg-white border border-neutral-200 rounded-xl p-6 mb-8">
+            <div>
               <textarea
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
-                placeholder="Share your thoughts..."
-                className="w-full p-4 bg-neutral-50 border border-neutral-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
+                placeholder="Add to the discussion…"
                 rows={4}
+                style={{ width: "100%", resize: "vertical", marginBottom: "8px" }}
               />
-              <div className="flex justify-end gap-3 mt-4">
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
                 <button
                   onClick={() => setNewComment("")}
-                  className="px-6 py-2 text-neutral-600 hover:bg-neutral-100 rounded-lg transition-colors font-medium"
+                  style={{
+                    padding: "6px 12px",
+                    fontSize: "12px",
+                    color: "var(--text-secondary)",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    fontFamily: "var(--font-ui)",
+                  }}
                 >
                   Cancel
                 </button>
                 <button
                   disabled={!newComment.trim()}
-                  className="px-6 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
+                  style={{
+                    padding: "6px 12px",
+                    fontSize: "12px",
+                    border: "1px solid var(--accent)",
+                    color: "var(--accent)",
+                    borderRadius: "3px",
+                    cursor: "pointer",
+                    background: "none",
+                    fontFamily: "var(--font-ui)",
+                    opacity: newComment.trim() ? 1 : 0.4,
+                  }}
                 >
-                  Post Comment
+                  Reply
                 </button>
               </div>
             </div>
           ) : (
-            <div className="bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-8 mb-8 text-center">
-              <p className="text-neutral-700 mb-4 text-lg">Join the discussion</p>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px", border: "1px solid var(--border-subtle)" }}>
+              <span style={{ color: "var(--text-muted)", fontSize: "13px", fontFamily: "var(--font-mono)" }}>
+                Login to participate in the discussion.
+              </span>
               <button
                 onClick={() => (window.location.href = getLoginUrl())}
-                className="inline-block px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-lg hover:shadow-lg transition-all"
+                style={{
+                  padding: "6px 12px",
+                  border: "1px solid var(--accent)",
+                  color: "var(--accent)",
+                  borderRadius: "3px",
+                  fontSize: "12px",
+                  fontFamily: "var(--font-ui)",
+                  cursor: "pointer",
+                  background: "none",
+                  flexShrink: 0,
+                }}
               >
-                Login to Comment
+                Login
               </button>
             </div>
           )}
+        </div>
 
-          {/* Comments List */}
-          {commentsLoading ? (
-            <div className="text-center py-12">
-              <p className="text-neutral-600">Loading comments...</p>
-            </div>
-          ) : comments.length === 0 ? (
-            <div className="bg-white border border-neutral-200 rounded-xl p-8 text-center">
-              <p className="text-neutral-600">No comments yet. Be the first to share your thoughts!</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {comments.map((comment: any) => (
-                <div key={comment.id} className="bg-white border border-neutral-200 rounded-xl p-6 hover:border-neutral-300 transition-all">
-                  <div className="flex gap-4">
-                    {/* Vote Buttons */}
-                    <div className="flex flex-col items-center gap-2">
+        {/* Comments */}
+        {commentsLoading ? (
+          <div style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: "12px" }}>Loading…</div>
+        ) : (
+          <ul className="reply-tree">
+            {topLevel.length === 0 && (
+              <li style={{ color: "var(--text-faint)", fontFamily: "var(--font-mono)", fontSize: "12px", padding: "16px 0" }}>
+                No replies yet.
+              </li>
+            )}
+            {topLevel.map((comment: any) => {
+              const cVoted = hasVoted(comment.id);
+              const cUpvoted = userVotes[comment.id] === 1;
+              const cDownvoted = userVotes[comment.id] === -1;
+              const replies = getReplies(comment.id);
+
+              return (
+                <li key={comment.id} className="reply">
+                  <div className="reply__author">
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-faint)" }}>
+                      {comment.pseudonym ?? "anon"}
+                    </span>
+                    <span style={{ marginLeft: "8px", color: "var(--text-faint)", fontFamily: "var(--font-mono)", fontSize: "11px" }}>
+                      {formatTime(comment.createdAt)}
+                    </span>
+                  </div>
+                  <p className="reply__body">{comment.body}</p>
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
                       <button
-                        onClick={() => handleVote(comment.id, 1)}
-                        className={`p-2 rounded-lg transition-all duration-200 ${
-                          userVotes[comment.id] === 1
-                            ? "bg-blue-100 text-blue-600"
-                            : "text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600"
-                        }`}
+                        className={`vote-btn${cUpvoted ? " vote-btn--voted" : ""}`}
+                        onClick={(e) => handleVote(comment.id, 1, e)}
                       >
-                        <ArrowUp className="w-4 h-4" strokeWidth={2.5} />
+                        <span style={{ fontSize: "12px", color: cUpvoted ? "var(--accent)" : undefined }}>↑</span>
                       </button>
-                      <span className={`text-xs font-semibold transition-colors ${userVotes[comment.id] ? "text-dark" : "text-neutral-500"}`}>
-                        {comment.score || 0}
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: cVoted ? "var(--text-secondary)" : "var(--text-faint)" }}>
+                        {cVoted ? (comment.score ?? 0) : "·"}
                       </span>
                       <button
-                        onClick={() => handleVote(comment.id, -1)}
-                        className={`p-2 rounded-lg transition-all duration-200 ${
-                          userVotes[comment.id] === -1
-                            ? "bg-red-100 text-red-600"
-                            : "text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600"
-                        }`}
+                        className={`vote-btn${cDownvoted ? " vote-btn--voted" : ""}`}
+                        onClick={(e) => handleVote(comment.id, -1, e)}
                       >
-                        <ArrowDown className="w-4 h-4" strokeWidth={2.5} />
+                        <span style={{ fontSize: "12px", color: cDownvoted ? "var(--negative)" : undefined }}>↓</span>
                       </button>
                     </div>
-
-                    {/* Comment Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="font-semibold text-sm text-dark">
-                          {comment.pseudonym}
-                        </span>
-                        <span className="text-xs text-neutral-500">
-                          {formatTime(comment.createdAt)}
-                        </span>
-                      </div>
-                      <p className="text-sm text-neutral-700 mb-3 leading-relaxed">
-                        {comment.body}
-                      </p>
-                      <button className="text-xs text-neutral-500 hover:text-blue-600 transition-colors flex items-center gap-1 font-medium">
-                        <MessageCircle className="w-3 h-3" />
-                        Reply
-                      </button>
-                    </div>
+                    {isAuthenticated && (
+                      <>
+                        <button
+                          onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
+                          style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-faint)", background: "none", border: "none", cursor: "pointer" }}
+                          onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
+                          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-faint)")}
+                        >
+                          reply
+                        </button>
+                        <button
+                          onClick={() => setSteelmanTarget(steelmanTarget === comment.id ? null : comment.id)}
+                          style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-faint)", background: "none", border: "none", cursor: "pointer" }}
+                          onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent-dim)")}
+                          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-faint)")}
+                          title="Steelman — restate the opposing view before replying"
+                        >
+                          steelman
+                        </button>
+                      </>
+                    )}
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+
+                  {/* Nested replies (max 1 level deep) */}
+                  {replies.length > 0 && (
+                    <ul className="reply-tree" style={{ marginTop: "4px" }}>
+                      {replies.map((reply: any) => {
+                        const rVoted = hasVoted(reply.id);
+                        const rUpvoted = userVotes[reply.id] === 1;
+                        const rDownvoted = userVotes[reply.id] === -1;
+                        return (
+                          <li key={reply.id} className="reply reply--nested">
+                            <div className="reply__author">
+                              <span>{reply.pseudonym ?? "anon"}</span>
+                              <span style={{ marginLeft: "8px" }}>{formatTime(reply.createdAt)}</span>
+                            </div>
+                            <p className="reply__body">{reply.body}</p>
+                            <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                              <button className={`vote-btn${rUpvoted ? " vote-btn--voted" : ""}`} onClick={(e) => handleVote(reply.id, 1, e)}>
+                                <span style={{ fontSize: "12px", color: rUpvoted ? "var(--accent)" : undefined }}>↑</span>
+                              </button>
+                              <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: rVoted ? "var(--text-secondary)" : "var(--text-faint)" }}>
+                                {rVoted ? (reply.score ?? 0) : "·"}
+                              </span>
+                              <button className={`vote-btn${rDownvoted ? " vote-btn--voted" : ""}`} onClick={(e) => handleVote(reply.id, -1, e)}>
+                                <span style={{ fontSize: "12px", color: rDownvoted ? "var(--negative)" : undefined }}>↓</span>
+                              </button>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </div>
+
+      {/* Steelman modal */}
+      {steelmanTarget !== null && (() => {
+        const targetComment = (comments as any[]).find((c) => c.id === steelmanTarget);
+        return (
+          <SteelmanModal
+            isOpen={true}
+            originalArgument={targetComment?.body ?? ""}
+            onClose={() => setSteelmanTarget(null)}
+            onSubmit={() => {
+              setSteelmanTarget(null);
+              setReplyingTo(steelmanTarget);
+            }}
+          />
+        );
+      })()}
     </div>
   );
 }

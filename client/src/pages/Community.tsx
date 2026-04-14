@@ -1,24 +1,16 @@
 import { useRoute, useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
-import { ArrowUp, ArrowDown, MessageCircle, Bookmark, Share2, Users, ChevronLeft } from "lucide-react";
+import { MessageCircle, ChevronLeft } from "lucide-react";
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 
-const COMMUNITY_ICONS: Record<string, string> = {
-  technology: "⚡",
-  design: "✨",
-  science: "🔬",
-  books: "📚",
-  general: "💬",
-};
-
-const COMMUNITY_DESCRIPTIONS: Record<string, string> = {
-  technology: "Discussions about technology, programming, AI, and digital innovation.",
-  design: "Design thinking, UX/UI, visual arts, and creative expression.",
-  science: "Scientific discoveries, research, and the pursuit of knowledge.",
-  books: "Literature, reading, book recommendations, and thoughtful analysis.",
-  general: "Everything else—philosophy, culture, society, and beyond.",
+const COMMUNITY_META: Record<string, { icon: string; description: string }> = {
+  technology: { icon: "⚡", description: "Technology, programming, AI, and digital craft." },
+  design: { icon: "✦", description: "Design thinking, UX/UI, visual language, and creative process." },
+  science: { icon: "◎", description: "Scientific discoveries, research, and the pursuit of understanding." },
+  books: { icon: "◈", description: "Literature, reading, and thoughtful textual analysis." },
+  general: { icon: "◇", description: "Philosophy, culture, society, and everything else." },
 };
 
 export default function Community() {
@@ -31,228 +23,217 @@ export default function Community() {
   if (!match) return null;
 
   const communityName = params?.community as string;
+  const meta = COMMUNITY_META[communityName] ?? { icon: "◇", description: `Discussion space for ${communityName}.` };
 
-  // Fetch community info
-  const { data: community } = trpc.communities.getByName.useQuery({
-    name: communityName,
-  });
+  const { data: community } = trpc.communities.getByName.useQuery({ name: communityName });
+  const { data: posts = [], isLoading } = trpc.posts.getFeed.useQuery({ limit: 25 });
 
-  // Fetch community feed
-  const { data: posts = [], isLoading } = trpc.posts.getFeed.useQuery({
-    limit: 25,
-  });
-
-  const formatTime = (date: Date) => {
-    const hours = Math.floor((Date.now() - new Date(date).getTime()) / (1000 * 60 * 60));
+  const formatTime = (date: Date | string) => {
+    const d = typeof date === "string" ? new Date(date) : date;
+    const hours = Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60));
     if (hours < 1) return "just now";
-    if (hours < 24) return `${hours}h ago`;
-    return `${Math.floor(hours / 24)}d ago`;
+    if (hours < 24) return `${hours}h`;
+    return `${Math.floor(hours / 24)}d`;
   };
 
-  const handleVote = (postId: number, value: number) => {
+  const handleVote = (postId: number, value: number, e: React.MouseEvent) => {
+    e.stopPropagation();
     if (!isAuthenticated) {
       window.location.href = getLoginUrl();
       return;
     }
-    setUserVotes((prev) => ({
-      ...prev,
-      [postId]: prev[postId] === value ? 0 : value,
-    }));
+    setUserVotes((prev) => ({ ...prev, [postId]: prev[postId] === value ? 0 : value }));
   };
 
-  const communityDisplayName = community?.displayName || communityName.charAt(0).toUpperCase() + communityName.slice(1);
-  const communityDescription = community?.description || COMMUNITY_DESCRIPTIONS[communityName] || `A space for thoughtful discussion about ${communityName}.`;
-  const communityIcon = COMMUNITY_ICONS[communityName] || "💬";
+  const hasVoted = (id: number) => id in userVotes && userVotes[id] !== 0;
+
+  const displayName = community?.displayName || communityName.charAt(0).toUpperCase() + communityName.slice(1);
+  const description = community?.description || meta.description;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-neutral-50 to-white">
-      {/* Community Header */}
-      <div className="border-b border-neutral-200 bg-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div style={{ minHeight: "100vh", backgroundColor: "var(--surface-base)" }}>
+      {/* Topic Header */}
+      <div style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+        <div className="container">
           <button
             onClick={() => setLocation("/")}
-            className="flex items-center gap-2 text-neutral-600 hover:text-dark mb-6 transition-colors"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "4px",
+              color: "var(--text-muted)",
+              fontFamily: "var(--font-mono)",
+              fontSize: "11px",
+              letterSpacing: "0.04em",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              padding: "24px 0 0",
+              marginBottom: "8px",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-secondary)")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
           >
-            <ChevronLeft className="w-5 h-5" />
-            Back to Home
+            <ChevronLeft style={{ width: "12px", height: "12px" }} />
+            All spaces
           </button>
 
-          <div className="flex items-start gap-6">
-            <div className="text-5xl">{communityIcon}</div>
-            <div className="flex-1">
-              <h1 className="text-4xl font-bold text-dark mb-2">
-                {communityDisplayName}
-              </h1>
-              <p className="text-lg text-neutral-600 mb-6 leading-relaxed">
-                {communityDescription}
-              </p>
-              <div className="flex items-center gap-6">
-                <div className="flex items-center gap-2 text-neutral-600">
-                  <Users className="w-5 h-5" />
-                  <span className="font-medium">Community</span>
-                </div>
-                {isAuthenticated && (
-                  <button
-                    onClick={() => setLocation("/compose")}
-                    className="px-6 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-lg hover:shadow-lg transform hover:scale-105 transition-all duration-200"
-                  >
-                    Create Post
-                  </button>
-                )}
-              </div>
-            </div>
+          <div className="topic-header">
+            <p className="topic-header__active">
+              <span>{meta.icon}</span> {displayName}
+            </p>
+            <h1 className="topic-header__name">{displayName}</h1>
+            <p className="topic-header__desc">{description}</p>
+            {isAuthenticated && (
+              <button
+                onClick={() => setLocation("/compose")}
+                style={{
+                  marginTop: "20px",
+                  padding: "7px 14px",
+                  border: "1px solid var(--accent)",
+                  color: "var(--accent)",
+                  borderRadius: "3px",
+                  fontSize: "12px",
+                  fontFamily: "var(--font-ui)",
+                  cursor: "pointer",
+                  background: "none",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--accent-subtle)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+              >
+                New post
+              </button>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Feed Section */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Filter Buttons */}
-        <div className="flex gap-3 mb-8">
-          <button
-            onClick={() => setSortBy("recent")}
-            className={`px-6 py-2 font-semibold rounded-lg transition-all duration-200 ${
-              sortBy === "recent"
-                ? "bg-blue-50 text-blue-700 shadow-sm"
-                : "text-neutral-600 hover:bg-neutral-100"
-            }`}
-          >
-            Recent
-          </button>
-          <button
-            onClick={() => setSortBy("score")}
-            className={`px-6 py-2 font-semibold rounded-lg transition-all duration-200 ${
-              sortBy === "score"
-                ? "bg-blue-50 text-blue-700 shadow-sm"
-                : "text-neutral-600 hover:bg-neutral-100"
-            }`}
-          >
-            Top
-          </button>
+      {/* Feed */}
+      <div className="container" style={{ paddingTop: "32px", paddingBottom: "64px" }}>
+        {/* Sort tabs */}
+        <div style={{ display: "flex", gap: "20px", marginBottom: "8px", borderBottom: "1px solid var(--border-subtle)", paddingBottom: "12px" }}>
+          {(["recent", "score"] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setSortBy(tab)}
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: "11px",
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                color: sortBy === tab ? "var(--text-primary)" : "var(--text-faint)",
+                paddingBottom: "12px",
+                marginBottom: "-13px",
+                cursor: "pointer",
+                background: "none",
+                border: "none",
+                borderBottom: sortBy === tab ? "1px solid var(--accent)" : "none",
+              } as React.CSSProperties}
+            >
+              {tab === "recent" ? "Recent" : "Top"}
+            </button>
+          ))}
         </div>
 
-        {/* Loading State */}
+        {/* Loading */}
         {isLoading && (
-          <div className="space-y-4">
+          <div>
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-40 bg-neutral-200 rounded-xl animate-pulse" />
+              <div key={i} style={{ padding: "20px 0", borderBottom: "1px solid var(--border-subtle)", opacity: 0.4 }}>
+                <div style={{ height: "17px", width: "60%", backgroundColor: "var(--surface-overlay)", borderRadius: "2px", marginBottom: "8px" }} />
+                <div style={{ height: "13px", width: "80%", backgroundColor: "var(--surface-overlay)", borderRadius: "2px" }} />
+              </div>
             ))}
           </div>
         )}
 
-        {/* Posts List */}
-        {!isLoading && (
-          <div className="space-y-4">
-            {posts.length === 0 ? (
-              <div className="text-center py-16">
-                <p className="text-neutral-600 text-lg">No posts yet in this community. Be the first!</p>
-              </div>
-            ) : (
-              posts.map((post: any) => (
-                <div
-                  key={post.id}
-                  onClick={() => setLocation(`/post/${post.id}`)}
-                  className="group bg-white border border-neutral-200 rounded-xl p-6 hover:border-neutral-300 hover:shadow-md transition-all duration-200 cursor-pointer"
-                >
-                  <div className="flex gap-4">
-                    {/* Vote Section */}
-                    <div className="flex flex-col items-center gap-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleVote(post.id, 1);
-                        }}
-                        className={`p-2 rounded-lg transition-all duration-200 ${
-                          userVotes[post.id] === 1
-                            ? "bg-blue-100 text-blue-600"
-                            : "text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600"
-                        }`}
-                      >
-                        <ArrowUp className="w-5 h-5" strokeWidth={2.5} />
-                      </button>
-                      <span className={`text-sm font-semibold transition-colors ${userVotes[post.id] ? "text-dark" : "text-neutral-500"}`}>
-                        {post.score || 0}
-                      </span>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleVote(post.id, -1);
-                        }}
-                        className={`p-2 rounded-lg transition-all duration-200 ${
-                          userVotes[post.id] === -1
-                            ? "bg-red-100 text-red-600"
-                            : "text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600"
-                        }`}
-                      >
-                        <ArrowDown className="w-5 h-5" strokeWidth={2.5} />
-                      </button>
-                    </div>
-
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-4 mb-3">
-                        <div className="flex-1">
-                          <div className="text-xs text-neutral-500 mb-2">
-                            {formatTime(post.createdAt)}
-                          </div>
-                          <h3 className="text-lg font-bold text-dark group-hover:text-blue-600 transition-colors line-clamp-2">
-                            {post.title}
-                          </h3>
-                        </div>
-                      </div>
-
-                      <p className="text-neutral-600 text-sm line-clamp-2 mb-4">
-                        {post.body}
-                      </p>
-
-                      {/* Actions */}
-                      <div className="flex items-center gap-6 text-neutral-500 text-sm">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setLocation(`/post/${post.id}`);
-                          }}
-                          className="flex items-center gap-2 hover:text-blue-600 transition-colors"
-                        >
-                          <MessageCircle className="w-4 h-4" />
-                          <span>{post.commentCount || 0}</span>
-                        </button>
-                        {isAuthenticated && (
-                          <button
-                            onClick={(e) => e.stopPropagation()}
-                            className="flex items-center gap-2 hover:text-blue-600 transition-colors"
-                          >
-                            <Bookmark className="w-4 h-4" />
-                            Save
-                          </button>
-                        )}
-                        <button
-                          onClick={(e) => e.stopPropagation()}
-                          className="flex items-center gap-2 hover:text-blue-600 transition-colors ml-auto"
-                        >
-                          <Share2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
+        {/* Posts */}
+        {!isLoading && posts.length === 0 && (
+          <div style={{ padding: "48px 0", color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: "12px" }}>
+            No posts yet in this space.
           </div>
         )}
 
-        {/* Login Prompt */}
-        {!isAuthenticated && (
-          <div className="mt-12 p-8 bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl border border-blue-200 text-center">
-            <h3 className="text-lg font-bold text-dark mb-2">Join the Conversation</h3>
-            <p className="text-neutral-600 mb-6">
-              Login to share your ideas in {communityDisplayName}
-            </p>
+        {!isLoading && posts.map((post: any) => {
+          const voted = hasVoted(post.id);
+          const upvoted = userVotes[post.id] === 1;
+          const downvoted = userVotes[post.id] === -1;
+
+          return (
+            <div
+              key={post.id}
+              className="post-card"
+              onClick={() => setLocation(`/post/${post.id}`)}
+              style={{ cursor: "pointer" }}
+            >
+              <div style={{ display: "flex", gap: "16px", alignItems: "flex-start" }}>
+                {/* Vote column */}
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px", flexShrink: 0, paddingTop: "2px" }}>
+                  <button
+                    className={`vote-btn${upvoted ? " vote-btn--voted" : ""}`}
+                    onClick={(e) => handleVote(post.id, 1, e)}
+                    title="Upvote"
+                  >
+                    <span className="vote-btn__arrow" style={{ color: upvoted ? "var(--accent)" : undefined }}>↑</span>
+                  </button>
+                  <span
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      fontSize: "11px",
+                      color: voted ? "var(--text-secondary)" : "var(--text-faint)",
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    {voted ? (post.score ?? 0) : "·"}
+                  </span>
+                  <button
+                    className={`vote-btn${downvoted ? " vote-btn--voted" : ""}`}
+                    onClick={(e) => handleVote(post.id, -1, e)}
+                    title="Downvote"
+                  >
+                    <span className="vote-btn__arrow" style={{ color: downvoted ? "var(--negative)" : undefined }}>↓</span>
+                  </button>
+                </div>
+
+                {/* Content */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
+                    {post.isStub && <span className="stub-badge">stub</span>}
+                    {post.requiresConsensus && <span className="consensus-gate">⊙ gate</span>}
+                  </div>
+                  <h3 className="post-card__title">{post.title}</h3>
+                  {post.body && <p className="post-card__excerpt">{post.body}</p>}
+                  <div className="post-card__footer" style={{ marginTop: "12px" }}>
+                    <div className="post-card__signals">
+                      <button
+                        className="post-card__replies"
+                        onClick={(e) => { e.stopPropagation(); setLocation(`/post/${post.id}`); }}
+                        style={{ display: "flex", alignItems: "center", gap: "4px", background: "none", border: "none", cursor: "pointer" }}
+                      >
+                        <MessageCircle style={{ width: "11px", height: "11px" }} />
+                        <span>{post.commentCount ?? 0}</span>
+                      </button>
+                      <span className="post-card__age">{formatTime(post.createdAt)}</span>
+                    </div>
+                    <span className="post-card__author">{post.pseudonym ?? "anon"}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Login prompt */}
+        {!isAuthenticated && !isLoading && (
+          <div style={{ marginTop: "40px", padding: "24px", border: "1px solid var(--border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px" }}>
+            <span style={{ color: "var(--text-muted)", fontSize: "13px", fontFamily: "var(--font-mono)" }}>
+              Login to post and vote in {displayName}.
+            </span>
             <button
               onClick={() => (window.location.href = getLoginUrl())}
-              className="inline-block px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-lg hover:shadow-lg transform hover:scale-105 transition-all duration-200"
+              style={{ padding: "6px 12px", border: "1px solid var(--accent)", color: "var(--accent)", borderRadius: "3px", fontSize: "12px", fontFamily: "var(--font-ui)", cursor: "pointer", background: "none", flexShrink: 0 }}
             >
-              Login to Participate
+              Login
             </button>
           </div>
         )}
