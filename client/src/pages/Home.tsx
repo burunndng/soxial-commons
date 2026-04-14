@@ -83,13 +83,10 @@ export default function Home() {
                 letterSpacing: "0.06em",
                 textTransform: "uppercase",
                 color: sortBy === tab ? "var(--text-primary)" : "var(--text-faint)",
-                borderBottom: sortBy === tab ? "1px solid var(--accent)" : "1px solid transparent",
                 paddingBottom: "12px",
                 marginBottom: "-13px",
                 cursor: "pointer",
                 background: "none",
-                border: "none",
-                borderBottom: sortBy === tab ? "1px solid var(--accent)" : "none",
               } as React.CSSProperties}
             >
               {tab === "recent" ? "Recent" : "Top"}
