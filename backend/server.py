@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime, timezone, timedelta
 from bson import ObjectId
-import os, jwt, random, hashlib
+import os, jwt, random, hashlib, asyncio
 
 from contextlib import asynccontextmanager
 
@@ -16,7 +16,85 @@ from contextlib import asynccontextmanager
 @asynccontextmanager
 async def lifespan(app_instance):
     await startup()
+    task = asyncio.create_task(_cluster_loop())
     yield
+    task.cancel()
+
+
+async def _cluster_loop():
+    """Background job: recompute voter similarity + cluster assignments every 5 min."""
+    while True:
+        await asyncio.sleep(300)
+        try:
+            await compute_voter_clusters()
+        except Exception:
+            pass
+
+
+async def compute_voter_clusters():
+    """
+    Simplified cluster detection from voting patterns (decentralized-moderation skill).
+    For each pair of sessions that both voted on ≥3 shared posts, compute a
+    similarity score: (agreements - disagreements) / total.
+    Store in voter_similarity collection; assign cluster_id via simple grouping.
+    """
+    MIN_OVERLAP = 3
+
+    # Gather all votes grouped by postId
+    votes_by_post: dict = {}
+    async for v in db.post_votes.find({}):
+        pid = v["postId"]
+        votes_by_post.setdefault(pid, []).append({"sid": v["sessionId"], "val": v["value"]})
+
+    # Build pair scores
+    pair_scores: dict = {}
+    for voters in votes_by_post.values():
+        for i in range(len(voters)):
+            for j in range(i + 1, len(voters)):
+                a, b = voters[i], voters[j]
+                key = (min(a["sid"], b["sid"]), max(a["sid"], b["sid"]))
+                rec = pair_scores.setdefault(key, {"agree": 0, "total": 0})
+                rec["total"] += 1
+                rec["agree"] += 1 if a["val"] == b["val"] else -1
+
+    # Upsert similarity docs and assign clusters
+    cluster_map: dict = {}  # sid → cluster_id
+    next_cluster = [0]
+
+    for (sid_a, sid_b), rec in pair_scores.items():
+        if rec["total"] < MIN_OVERLAP:
+            continue
+        score = rec["agree"] / rec["total"]
+        await db.voter_similarity.update_one(
+            {"sessionA": sid_a, "sessionB": sid_b},
+            {"$set": {"score": round(score, 3), "postCount": rec["total"], "updatedAt": datetime.now(timezone.utc)}},
+            upsert=True,
+        )
+        # Simple cluster assignment: positive score → same cluster
+        if score >= 0.4:
+            ca = cluster_map.get(sid_a)
+            cb = cluster_map.get(sid_b)
+            if ca is None and cb is None:
+                cluster_map[sid_a] = cluster_map[sid_b] = next_cluster[0]
+                next_cluster[0] += 1
+            elif ca is None:
+                cluster_map[sid_a] = cb
+            elif cb is None:
+                cluster_map[sid_b] = ca
+        else:
+            # Opposing — ensure different clusters
+            if sid_a not in cluster_map:
+                cluster_map[sid_a] = next_cluster[0]; next_cluster[0] += 1
+            if sid_b not in cluster_map:
+                cluster_map[sid_b] = next_cluster[0]; next_cluster[0] += 1
+
+    # Persist cluster assignments
+    for sid, cid in cluster_map.items():
+        await db.voter_clusters.update_one(
+            {"sessionId": sid},
+            {"$set": {"clusterId": cid, "updatedAt": datetime.now(timezone.utc)}},
+            upsert=True,
+        )
 
 
 app = FastAPI(title="Soxial Commons API", lifespan=lifespan)

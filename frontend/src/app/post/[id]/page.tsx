@@ -54,6 +54,12 @@ export default function PostDetailPage() {
     }
   }, [post?.endorsementCount]);
 
+  // Fetch live consensus state on mount so count is never stale
+  useEffect(() => {
+    if (!postId) return;
+    api.consensus(postId).then((s) => setEndorsementCount(s.endorsed)).catch(() => {});
+  }, [postId]);
+
   const handleVote = async (value: 1 | -1) => {
     if (!isAuthenticated || !post) return;
     const newValue = vote.value === value ? (0 as const) : value;
