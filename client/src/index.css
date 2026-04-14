@@ -1,5 +1,26 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Instrument+Serif:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,400&display=swap');
 
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Tailwind-compatible utility classes mapping to our design tokens */
+.bg-background { background-color: var(--surface-base); }
+.bg-surface { background-color: var(--surface-raised); }
+.bg-surface-overlay { background-color: var(--surface-overlay); }
+.bg-accent { background-color: var(--accent); }
+.bg-accent-subtle { background-color: var(--accent-subtle); }
+
+.text-foreground { color: var(--text-primary); }
+.text-primary { color: var(--text-primary); }
+.text-secondary { color: var(--text-secondary); }
+.text-muted { color: var(--text-muted); }
+.text-faint { color: var(--text-faint); }
+.text-accent { color: var(--accent); }
+
+.border-border { border-color: var(--border); }
+.border-border-subtle { border-color: var(--border-subtle); }
+
 :root {
   /* Forum UI color system — dark, cool-neutral surface */
   --surface-base: oklch(12% 0.008 250);
