@@ -286,7 +286,7 @@ async def create_session(response: Response):
         )
     session_id = str(r["id"])
     token = create_session_token(session_id, pseudonym)
-    response.set_cookie("session_token", token, httponly=True, secure=False, samesite="lax", max_age=30*24*3600, path="/")
+    response.set_cookie("session_token", token, httponly=True, secure=True, samesite="none", max_age=30*24*3600, path="/")
     return {"id": session_id, "pseudonym": pseudonym}
 
 
@@ -300,7 +300,7 @@ async def get_me(request: Request):
 
 @app.post("/api/auth/logout")
 async def logout(response: Response):
-    response.delete_cookie("session_token", path="/")
+    response.delete_cookie("session_token", path="/", secure=True, samesite="none")
     return {"success": True}
 
 
