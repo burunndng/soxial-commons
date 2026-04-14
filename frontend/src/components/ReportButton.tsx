@@ -51,9 +51,14 @@ export function ReportButton({ targetId, targetType, onReported }: ReportButtonP
       setDone(true);
       onReported?.();
       setTimeout(() => setOpen(false), 1500);
-    } catch {
-      // already reported or error
-      setDone(true);
+    } catch (err: unknown) {
+      // Show success even if already reported (idempotent UX)
+      const msg = err instanceof Error ? err.message : "";
+      if (msg.toLowerCase().includes("already")) {
+        setDone(true);
+      } else {
+        setDone(true); // Still close gracefully
+      }
       setTimeout(() => setOpen(false), 1500);
     } finally {
       setSubmitting(false);

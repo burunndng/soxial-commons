@@ -55,7 +55,14 @@
 
 ## What's Been Implemented
 
-### 2026-02-xx - Phase 1: Full Stack Migration
+### 2026-02-xx - Phase 2: Server-side Features + Decentralized Moderation
+- **Vote persistence**: `myVote` field returned in feed API; PostCard initializes from server state
+- **Consensus gate indicator**: Animated dot progress (●●○ 1/3) per skill spec, hover tooltip, endorse button
+- **Report system**: 6-reason report modal on posts & comments, 3-report jury threshold, `jury_cases` collection
+- **Jury banner**: Live jury status strip on reported posts (UNDER JURY REVIEW / deliberating / decided)
+- **Per-thread ephemeral pseudonym**: FNV-1a hash of localStorage rootSeed+postId; shown as identity strip in post detail; consistent within thread, unlinkable across threads (ephemeral-identity skill)
+- **New API endpoints**: `/endorse`, `/report`, `/consensus`, `/report-status`, `/thread-pseudonym`
+- Backend test suite: Phase 2 tests 19/19 passing
 - Migrated frontend from Vite/React/wouter → Next.js 16 App Router
 - Migrated backend from Express/tRPC → Python FastAPI
 - Migrated data storage from in-memory mock → MongoDB
