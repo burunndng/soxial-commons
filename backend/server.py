@@ -237,7 +237,7 @@ app = FastAPI(title="Soxial Commons API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[FRONTEND_URL, "http://localhost:3000", "https://soxial-commons.up.railway.app"],
+    allow_origins=[FRONTEND_URL, "http://localhost:3000", "https://soxial-commons-production.up.railway.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
