@@ -55,14 +55,28 @@
 - [x] Check responsive design on mobile
 - [x] Create checkpoint and prepare for deployment
 
+## Forum UI Skill Integration — IN PROGRESS
+- [ ] Redesign color system (dark blue-grey surface, amber accent, OKLCH)
+- [ ] Update typography (DM Sans UI, DM Mono for pseudonyms, Instrument Serif for titles)
+- [ ] Redesign post cards (no boxes, hairline borders, author as footnote)
+- [ ] Implement vote button with hidden counts (dot until voted)
+- [ ] Redesign reply threads (minimal indentation, max 2 levels)
+- [ ] Add consensus gate indicators
+- [ ] Add stub badges and status indicators
+- [ ] Implement pseudonym display in mono font
+
 ## Phase 2 (Future) — Advanced Features
-- [ ] Implement steelmanning prompt modal
 - [ ] Build nested/threaded comments
 - [ ] Implement local-first draft storage (IndexedDB)
-- [ ] Wire voting mutations to frontend
 - [ ] Implement handoff thread mechanics
 - [ ] Add Supabase database integration
 - [ ] Deploy to production
+
+## PRIORITY: High-Impact Wiring
+- [ ] Wire voting mutations to frontend (make votes persist)
+- [ ] Integrate serendipity feed into tRPC queries
+- [ ] Display ephemeral pseudonyms in posts/comments
+- [ ] Wire steelmanning modal into reply flows
 
 
 ## Anti-Vanity UX Skill Alignment (Phase 2+)
