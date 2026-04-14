@@ -7,12 +7,14 @@ import { type Comment, api } from "@/lib/api";
 import { formatAge } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { SteelmanModal } from "./SteelmanModal";
+import { ReportButton } from "./ReportButton";
 
 interface CommentNodeProps {
   comment: Comment;
   replies: Comment[];
   allComments: Comment[];
   depth?: number;
+  threadPseudonym?: string | null;
 }
 
 function CommentNode({
@@ -20,6 +22,7 @@ function CommentNode({
   replies,
   allComments,
   depth = 0,
+  threadPseudonym,
 }: CommentNodeProps) {
   const { isAuthenticated, login } = useAuth();
   const [vote, setVote] = useState<{ value: 1 | -1 | 0; score: number }>({
@@ -63,7 +66,7 @@ function CommentNode({
       const newComment: Comment = {
         id: res.id,
         postId: comment.postId,
-        pseudonym: "you",
+        pseudonym: threadPseudonym || "you",
         body: replyText,
         score: 0,
         parentId: comment.id,
@@ -244,6 +247,7 @@ function CommentNode({
               >
                 steelman
               </button>
+              <ReportButton targetId={comment.id} targetType="comment" />
             </>
           )}
         </div>
@@ -310,6 +314,7 @@ function CommentNode({
             replies={allComments.filter((c) => c.parentId === reply.id)}
             allComments={allComments}
             depth={depth + 1}
+            threadPseudonym={threadPseudonym}
           />
         ))}
       </div>
@@ -332,9 +337,10 @@ function CommentNode({
 interface CommentTreeProps {
   comments: Comment[];
   postId: string;
+  threadPseudonym?: string | null;
 }
 
-export function CommentTree({ comments, postId }: CommentTreeProps) {
+export function CommentTree({ comments, postId, threadPseudonym }: CommentTreeProps) {
   const { isAuthenticated, login } = useAuth();
   const [newComment, setNewComment] = useState("");
   const [localComments, setLocalComments] = useState<Comment[]>([]);
@@ -356,7 +362,7 @@ export function CommentTree({ comments, postId }: CommentTreeProps) {
         {
           id: res.id,
           postId,
-          pseudonym: "you",
+          pseudonym: threadPseudonym || "you",
           body: newComment,
           score: 0,
           parentId: null,
@@ -506,6 +512,7 @@ export function CommentTree({ comments, postId }: CommentTreeProps) {
                 replies={comments.filter((c) => c.parentId === comment.id)}
                 allComments={comments}
                 depth={0}
+                threadPseudonym={threadPseudonym}
               />
             </div>
           ))}

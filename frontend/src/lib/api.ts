@@ -20,6 +20,14 @@ export type Post = {
   isStub: boolean;
   requiresConsensus: boolean;
   createdAt: string;
+  // vote persistence
+  myVote?: 0 | 1 | -1;
+  // consensus gate
+  endorsementCount?: number;
+  // report/jury
+  reportCount?: number;
+  hasJuryCase?: boolean;
+  juryStatus?: string | null;
 };
 
 export type Comment = {
@@ -37,6 +45,20 @@ export type Community = {
   slug: string;
   name: string;
   description: string;
+};
+
+export type ConsensusState = {
+  status: "pending" | "partial" | "open";
+  endorsed: number;
+  required: number;
+  hasEndorsed: boolean;
+};
+
+export type ReportStatus = {
+  reportCount: number;
+  hasReported: boolean;
+  hasJuryCase: boolean;
+  juryStatus: Record<string, unknown> | null;
 };
 
 export const api = {
@@ -75,4 +97,25 @@ export const api = {
 
   myVote: (postId: string) =>
     client.get<{ voted: boolean; value: number; score: number | null }>(`/api/posts/${postId}/my-vote`).then((r) => r.data),
+
+  // Consensus
+  consensus: (postId: string) =>
+    client.get<ConsensusState>(`/api/posts/${postId}/consensus`).then((r) => r.data),
+
+  endorse: (postId: string) =>
+    client.post<{ success: boolean; endorsed: number; required: number }>(`/api/posts/${postId}/endorse`).then((r) => r.data),
+
+  // Reports
+  reportPost: (postId: string, reason: string, details?: string) =>
+    client.post<{ success: boolean; reportCount: number; juryTriggered: boolean }>(`/api/posts/${postId}/report`, { reason, details }).then((r) => r.data),
+
+  reportComment: (commentId: string, reason: string, details?: string) =>
+    client.post<{ success: boolean; reportCount: number }>(`/api/comments/${commentId}/report`, { reason, details }).then((r) => r.data),
+
+  reportStatus: (postId: string) =>
+    client.get<ReportStatus>(`/api/posts/${postId}/report-status`).then((r) => r.data),
+
+  // Per-thread pseudonym
+  threadPseudonym: (postId: string) =>
+    client.get<{ pseudonym: string }>(`/api/posts/${postId}/thread-pseudonym`).then((r) => r.data),
 };

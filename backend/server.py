@@ -5,10 +5,10 @@ from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime, timezone, timedelta
 from bson import ObjectId
-import os, jwt, random, bcrypt
+import os, jwt, random, hashlib
 
 from contextlib import asynccontextmanager
 
@@ -103,6 +103,9 @@ async def startup():
     try:
         await db.post_votes.create_index([("postId", 1), ("sessionId", 1)], unique=True)
         await db.comment_votes.create_index([("commentId", 1), ("sessionId", 1)], unique=True)
+        await db.thread_pseudonyms.create_index([("sessionId", 1), ("postId", 1)], unique=True)
+        await db.reports.create_index([("targetId", 1), ("sessionId", 1)])
+        await db.endorsements.create_index([("postId", 1), ("sessionId", 1)], unique=True)
     except Exception:
         pass
 
@@ -178,25 +181,53 @@ async def get_community(slug: str):
 # ─── Posts ───────────────────────────────────────────────────────────────────
 
 @app.get("/api/feed")
-async def get_feed(limit: int = 25, community: Optional[str] = None):
+async def get_feed(limit: int = 25, community: Optional[str] = None, request: Request = None):
+    session = await get_current_session(request)
     query = {}
     if community:
         query["communitySlug"] = community
     cursor = db.posts.find(query).sort("createdAt", -1).limit(limit * 2)
     posts = [serialize(p) async for p in cursor]
     random.shuffle(posts)
-    return posts[:limit]
+    posts = posts[:limit]
+
+    # Inject user vote state + endorsement counts
+    post_ids = [p["id"] for p in posts]
+    if session:
+        user_votes = {}
+        async for v in db.post_votes.find({"sessionId": session["id"], "postId": {"$in": post_ids}}):
+            user_votes[v["postId"]] = v["value"]
+        for post in posts:
+            post["myVote"] = user_votes.get(post["id"], 0)
+
+    # Endorsement counts for consensus posts
+    for post in posts:
+        if post.get("requiresConsensus"):
+            count = await db.endorsements.count_documents({"postId": post["id"]})
+            post["endorsementCount"] = count
+        else:
+            post["endorsementCount"] = 0
+
+    return posts
 
 
 @app.get("/api/posts/{post_id}")
-async def get_post(post_id: str):
+async def get_post(post_id: str, request: Request = None):
     try:
         post = await db.posts.find_one({"_id": ObjectId(post_id)})
     except Exception:
         raise HTTPException(status_code=404, detail="Post not found")
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
-    return serialize(post)
+    result = serialize(post)
+    # Include endorsement count
+    result["endorsementCount"] = await db.endorsements.count_documents({"postId": post_id})
+    # Include report/jury status
+    result["reportCount"] = await db.reports.count_documents({"targetId": post_id, "targetType": "post"})
+    jury = await db.jury_cases.find_one({"targetId": post_id, "status": {"$ne": "decided"}})
+    result["hasJuryCase"] = jury is not None
+    result["juryStatus"] = jury.get("status") if jury else None
+    return result
 
 
 class CreatePostRequest(BaseModel):
@@ -335,3 +366,168 @@ async def get_my_post_vote(post_id: str, request: Request):
 @app.get("/api/health")
 async def health():
     return {"status": "ok"}
+
+
+# ─── Consensus Gates ──────────────────────────────────────────────────────────
+
+CONSENSUS_REQUIRED = 3  # endorsements from distinct sessions needed
+
+
+@app.get("/api/posts/{post_id}/consensus")
+async def get_consensus(post_id: str, request: Request = None):
+    session = await get_current_session(request)
+    count = await db.endorsements.count_documents({"postId": post_id})
+    has_endorsed = False
+    if session:
+        e = await db.endorsements.find_one({"postId": post_id, "sessionId": session["id"]})
+        has_endorsed = e is not None
+
+    if count == 0:
+        status = "pending"
+    elif count < CONSENSUS_REQUIRED:
+        status = "partial"
+    else:
+        status = "open"
+
+    return {
+        "status": status,
+        "endorsed": count,
+        "required": CONSENSUS_REQUIRED,
+        "hasEndorsed": has_endorsed,
+    }
+
+
+@app.post("/api/posts/{post_id}/endorse")
+async def endorse_post(post_id: str, request: Request):
+    session = await get_current_session(request)
+    if not session:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    existing = await db.endorsements.find_one({"postId": post_id, "sessionId": session["id"]})
+    if existing:
+        raise HTTPException(status_code=400, detail="Already endorsed")
+
+    await db.endorsements.insert_one({
+        "postId": post_id,
+        "sessionId": session["id"],
+        "createdAt": datetime.now(timezone.utc),
+    })
+
+    count = await db.endorsements.count_documents({"postId": post_id})
+    return {"success": True, "endorsed": count, "required": CONSENSUS_REQUIRED}
+
+
+# ─── Reports & Jury ───────────────────────────────────────────────────────────
+
+REPORT_THRESHOLD = 3
+
+
+class ReportRequest(BaseModel):
+    reason: str
+    details: Optional[str] = None
+
+
+@app.post("/api/posts/{post_id}/report")
+async def report_post(post_id: str, report: ReportRequest, request: Request):
+    session = await get_current_session(request)
+    if not session:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    existing = await db.reports.find_one({"targetId": post_id, "targetType": "post", "sessionId": session["id"]})
+    if existing:
+        raise HTTPException(status_code=400, detail="Already reported")
+
+    await db.reports.insert_one({
+        "targetId": post_id,
+        "targetType": "post",
+        "sessionId": session["id"],
+        "reason": report.reason,
+        "details": report.details,
+        "status": "pending",
+        "createdAt": datetime.now(timezone.utc),
+    })
+
+    count = await db.reports.count_documents({"targetId": post_id, "targetType": "post"})
+    if count >= REPORT_THRESHOLD:
+        existing_case = await db.jury_cases.find_one({"targetId": post_id, "status": {"$ne": "decided"}})
+        if not existing_case:
+            await db.jury_cases.insert_one({
+                "targetId": post_id,
+                "targetType": "post",
+                "reportCount": count,
+                "status": "open",
+                "votes": {},
+                "createdAt": datetime.now(timezone.utc),
+            })
+
+    return {"success": True, "reportCount": count, "juryTriggered": count >= REPORT_THRESHOLD}
+
+
+@app.post("/api/comments/{comment_id}/report")
+async def report_comment(comment_id: str, report: ReportRequest, request: Request):
+    session = await get_current_session(request)
+    if not session:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    existing = await db.reports.find_one({"targetId": comment_id, "targetType": "comment", "sessionId": session["id"]})
+    if existing:
+        raise HTTPException(status_code=400, detail="Already reported")
+
+    await db.reports.insert_one({
+        "targetId": comment_id,
+        "targetType": "comment",
+        "sessionId": session["id"],
+        "reason": report.reason,
+        "details": report.details,
+        "status": "pending",
+        "createdAt": datetime.now(timezone.utc),
+    })
+
+    count = await db.reports.count_documents({"targetId": comment_id, "targetType": "comment"})
+    return {"success": True, "reportCount": count}
+
+
+@app.get("/api/posts/{post_id}/report-status")
+async def get_report_status(post_id: str, request: Request = None):
+    session = await get_current_session(request)
+    count = await db.reports.count_documents({"targetId": post_id, "targetType": "post"})
+    has_reported = False
+    if session:
+        r = await db.reports.find_one({"targetId": post_id, "targetType": "post", "sessionId": session["id"]})
+        has_reported = r is not None
+    jury = await db.jury_cases.find_one({"targetId": post_id, "status": {"$ne": "decided"}})
+    return {
+        "reportCount": count,
+        "hasReported": has_reported,
+        "hasJuryCase": jury is not None,
+        "juryStatus": serialize(jury) if jury else None,
+    }
+
+
+# ─── Per-thread Ephemeral Pseudonym ───────────────────────────────────────────
+
+@app.get("/api/posts/{post_id}/thread-pseudonym")
+async def get_thread_pseudonym(post_id: str, request: Request):
+    session = await get_current_session(request)
+    if not session:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    existing = await db.thread_pseudonyms.find_one({"sessionId": session["id"], "postId": post_id})
+    if existing:
+        return {"pseudonym": existing["pseudonym"]}
+
+    # Deterministic derivation: hash(sessionId + postId) → adjective-noun-number
+    raw = f"{session['id']}:thread:{post_id}".encode()
+    h = int(hashlib.sha256(raw).hexdigest(), 16)
+    adj = ADJECTIVES[h % len(ADJECTIVES)]
+    noun = NOUNS[(h >> 8) % len(NOUNS)]
+    num = str(h % 10000).zfill(4)
+    pseudonym = f"{adj}-{noun}-{num}"
+
+    await db.thread_pseudonyms.insert_one({
+        "sessionId": session["id"],
+        "postId": post_id,
+        "pseudonym": pseudonym,
+        "createdAt": datetime.now(timezone.utc),
+    })
+    return {"pseudonym": pseudonym}

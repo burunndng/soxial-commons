@@ -2,21 +2,27 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { ChevronLeft, MessageCircle, ChevronUp, ChevronDown } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
 import { formatAge } from "@/lib/utils";
 import { CommentTree } from "@/components/CommentTree";
+import { ConsensusIndicator } from "@/components/ConsensusIndicator";
+import { ReportButton } from "@/components/ReportButton";
+import { JuryBanner } from "@/components/JuryBanner";
+import { deriveThreadPseudonymFromRoot } from "@/lib/ephemeralIdentity";
 
 export default function PostDetailPage() {
   const params = useParams();
   const router = useRouter();
   const postId = params?.id as string;
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
   const [vote, setVote] = useState<{ value: 1 | -1 | 0; score: number | null }>({ value: 0, score: null });
+  const [threadPseudonym, setThreadPseudonym] = useState<string | null>(null);
+  const [endorsementCount, setEndorsementCount] = useState(0);
 
   const { data: post, isLoading: postLoading } = useQuery({
     queryKey: ["post", postId],
@@ -29,6 +35,24 @@ export default function PostDetailPage() {
     queryFn: () => api.comments(postId),
     enabled: !!postId,
   });
+
+  // Derive per-thread pseudonym from browser root seed (ephemeral-identity skill)
+  useEffect(() => {
+    if (!postId) return;
+    try {
+      const pseudo = deriveThreadPseudonymFromRoot(postId);
+      setThreadPseudonym(pseudo);
+    } catch {
+      // SSR guard
+    }
+  }, [postId]);
+
+  // Initialize endorsement count from post data
+  useEffect(() => {
+    if (post?.endorsementCount !== undefined) {
+      setEndorsementCount(post.endorsementCount);
+    }
+  }, [post?.endorsementCount]);
 
   const handleVote = async (value: 1 | -1) => {
     if (!isAuthenticated || !post) return;
@@ -100,7 +124,7 @@ export default function PostDetailPage() {
             fontFamily: "var(--font-dm-mono)",
             fontSize: "10px",
             letterSpacing: "0.04em",
-            marginBottom: "36px",
+            marginBottom: "28px",
             padding: 0,
           }}
           onMouseEnter={(e) =>
@@ -113,6 +137,14 @@ export default function PostDetailPage() {
           <ChevronLeft size={12} />
           Back
         </button>
+
+        {/* Jury banner */}
+        {(post.hasJuryCase || (post.reportCount ?? 0) >= 3) && (
+          <JuryBanner
+            juryStatus={post.juryStatus}
+            reportCount={post.reportCount}
+          />
+        )}
 
         {/* Post */}
         <motion.div
@@ -132,6 +164,7 @@ export default function PostDetailPage() {
               alignItems: "center",
               gap: "10px",
               marginBottom: "18px",
+              flexWrap: "wrap",
             }}
           >
             <span
@@ -148,7 +181,13 @@ export default function PostDetailPage() {
             </span>
             {post.isStub && <span className="stub-badge">stub</span>}
             {post.requiresConsensus && (
-              <span className="consensus-badge">⊙ gate</span>
+              <ConsensusIndicator
+                postId={post.id}
+                requiresConsensus={post.requiresConsensus}
+                endorsementCount={endorsementCount}
+                onUpdated={setEndorsementCount}
+                size="md"
+              />
             )}
             <span
               style={{
@@ -259,6 +298,11 @@ export default function PostDetailPage() {
               {comments.length}
             </span>
 
+            {/* Report button */}
+            {isAuthenticated && (
+              <ReportButton targetId={post.id} targetType="post" />
+            )}
+
             <span
               style={{
                 fontFamily: "var(--font-dm-mono)",
@@ -272,6 +316,54 @@ export default function PostDetailPage() {
               {post.pseudonym}
             </span>
           </div>
+
+          {/* Thread pseudonym notice */}
+          {isAuthenticated && threadPseudonym && (
+            <div
+              style={{
+                marginTop: "20px",
+                padding: "10px 14px",
+                backgroundColor: "var(--surface-raised)",
+                border: "1px solid var(--border-subtle)",
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: "var(--font-dm-mono)",
+                  fontSize: "9px",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  color: "var(--text-faint)",
+                }}
+              >
+                Your thread identity
+              </span>
+              <span
+                style={{
+                  fontFamily: "var(--font-dm-mono)",
+                  fontSize: "11px",
+                  color: "var(--accent-dim)",
+                  letterSpacing: "0.04em",
+                }}
+                data-testid="thread-pseudonym"
+              >
+                {threadPseudonym}
+              </span>
+              <span
+                style={{
+                  fontFamily: "var(--font-dm-mono)",
+                  fontSize: "9px",
+                  color: "var(--text-faint)",
+                  marginLeft: "auto",
+                }}
+              >
+                consistent in this thread · unlinked across threads
+              </span>
+            </div>
+          )}
         </motion.div>
 
         {/* Comments */}
@@ -286,7 +378,11 @@ export default function PostDetailPage() {
             Loading…
           </p>
         ) : (
-          <CommentTree comments={comments} postId={postId} />
+          <CommentTree
+            comments={comments}
+            postId={postId}
+            threadPseudonym={threadPseudonym}
+          />
         )}
       </div>
     </div>
