@@ -1,42 +1,38 @@
-```
-# Logs and temp files
-*.log
-*.tmp
-*.swp
-
-# Environment
-.env
-.env.local
-.env.*
-
-# Editors
-.vscode/
-.idea/
-
+```gitignore
 # Dependencies
 node_modules/
-.venv/
-venv/
-__pycache__/
-.mypy_cache/
-.pytest_cache/
+
+# Build outputs
 dist/
 build/
 target/
-.gradle/
 
-# Compiled files
+# Python
+__pycache__/
 *.pyc
-*.class
-*.o
-*.exe
-*.dll
-*.so
-*.a
-*.obj
-*.out
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+.ENV
+.ENV.*
+.env
+.env.*
+.env.local
 
-# System files
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
 .DS_Store
 Thumbs.db
 
@@ -44,6 +40,10 @@ Thumbs.db
 coverage/
 htmlcov/
 .coverage
+
+# Temporary files
+*.tmp
+*.temp
 
 # Compressed files
 *.zip
