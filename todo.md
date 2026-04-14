@@ -25,9 +25,9 @@
 - [x] Create Home feed with real tRPC data
 - [x] Build Community pages with real data
 - [x] Build Post detail page with real data
-- [ ] Create post composer with collaboration/stub options
-- [ ] Implement steelmanning prompt modal
-- [ ] Build comment thread with nested replies
+- [x] Create post composer with collaboration/stub options
+- [ ] Implement steelmanning prompt modal — Deferred for Phase 2
+- [ ] Build comment thread with nested replies — Deferred for Phase 2
 - [x] Add responsive layout and mobile support
 
 ## Phase 4: Collaboration & Mechanics
@@ -46,7 +46,7 @@
 - [x] Add loading states and error handling
 - [x] Optimize performance for randomized feeds
 - [x] Add comprehensive test coverage (28 tests, all passing)
-- [ ] Implement local-first draft storage (IndexedDB)
+- [ ] Implement local-first draft storage (IndexedDB) — Deferred for Phase 2
 
 ## Phase 6: Final Delivery
 - [x] Verify all features work end-to-end
